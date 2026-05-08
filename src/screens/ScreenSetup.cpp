@@ -10,9 +10,10 @@ void ScreenSetup::begin(TFT_eSPI* tft) {
 }
 
 void ScreenSetup::onActivate() {
-    _dirty = true;
-    _state = State::SHOW_INSTRUCTIONS;
-    _ready = false;
+    _dirty       = true;
+    _state       = State::WAITING_WIFI;
+    _ready       = false;
+    _pendingWiFi = true;   // portal inicia automaticamente após o primeiro draw
 }
 
 void ScreenSetup::draw() {
@@ -22,11 +23,12 @@ void ScreenSetup::draw() {
     _tft->fillScreen(Theme::BG);
 
     switch (_state) {
-        case State::SHOW_INSTRUCTIONS:
-            drawInstructions();
-            break;
         case State::WAITING_WIFI:
             drawStatus("Starting WiFi portal...", Theme::COL_WARN);
+            if (_pendingWiFi) {
+                _pendingWiFi = false;
+                startWiFiManager();
+            }
             break;
         case State::WIFI_DONE:
             drawIPEntry();
@@ -55,16 +57,6 @@ void ScreenSetup::draw() {
 
 void ScreenSetup::onTouch(uint16_t x, uint16_t y) {
     switch (_state) {
-        case State::SHOW_INSTRUCTIONS: {
-            // "Setup WiFi" button at bottom
-            if (y > CONTENT_H - 50 && y < CONTENT_H) {
-                _state = State::WAITING_WIFI;
-                _dirty = true;
-                draw();  // force immediate draw before blocking call
-                startWiFiManager();
-            }
-            break;
-        }
         case State::WIFI_DONE:
         case State::IP_ENTRY:
         case State::ERROR: {
@@ -92,34 +84,6 @@ void ScreenSetup::onTouch(uint16_t x, uint16_t y) {
 }
 
 // ─── Private helpers ─────────────────────────────────────────────────────────
-
-void ScreenSetup::drawInstructions() {
-    _tft->setTextColor(Theme::COL_CYAN, Theme::BG);
-    _tft->setTextFont(4);
-    _tft->setTextDatum(MC_DATUM);
-    _tft->drawString("WarThunderDeck", SCREEN_W / 2, 30);
-
-    _tft->setTextColor(Theme::TEXT_PRIMARY, Theme::BG);
-    _tft->setTextFont(2);
-    _tft->drawString("First-time setup", SCREEN_W / 2, 60);
-
-    _tft->setTextColor(Theme::TEXT_DIM, Theme::BG);
-    _tft->setTextFont(2);
-    _tft->drawString("Connect to WiFi:", SCREEN_W / 2, 100);
-    _tft->setTextColor(Theme::COL_OK, Theme::BG);
-    _tft->drawString(WIFI_AP_NAME, SCREEN_W / 2, 118);
-    _tft->setTextColor(Theme::TEXT_DIM, Theme::BG);
-    _tft->drawString("Password: " WIFI_AP_PASS, SCREEN_W / 2, 136);
-    _tft->drawString("Visit 192.168.4.1", SCREEN_W / 2, 154);
-    _tft->drawString("to configure WiFi + PC IP", SCREEN_W / 2, 172);
-
-    // "Start Setup" button
-    _tft->fillRoundRect(20, CONTENT_H - 50, SCREEN_W - 40, 40, 6, Theme::TAB_ACTIVE_BG);
-    _tft->setTextColor(Theme::COL_CYAN, Theme::TAB_ACTIVE_BG);
-    _tft->setTextFont(4);
-    _tft->drawString("Start WiFi Setup", SCREEN_W / 2, CONTENT_H - 36);
-    _tft->setTextDatum(TL_DATUM);
-}
 
 void ScreenSetup::drawIPEntry() {
     // IP display bar
@@ -185,7 +149,8 @@ void ScreenSetup::startWiFiManager() {
         }
         _state = State::WIFI_DONE;
     } else {
-        _state = State::SHOW_INSTRUCTIONS;
+        _state       = State::WAITING_WIFI;
+        _pendingWiFi = true;   // tenta novamente
     }
     _dirty = true;
 }

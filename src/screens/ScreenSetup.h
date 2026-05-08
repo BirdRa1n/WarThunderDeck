@@ -16,12 +16,13 @@ public:
     bool isReady() const { return _ready; }
 
 private:
-    enum class State { SHOW_INSTRUCTIONS, WAITING_WIFI, WIFI_DONE, IP_ENTRY, TESTING, ERROR, READY };
+    enum class State { WAITING_WIFI, WIFI_DONE, IP_ENTRY, TESTING, ERROR, READY };
 
     UserConfig& _cfg;
-    State       _state    = State::SHOW_INSTRUCTIONS;
-    bool        _ready    = false;
-    bool        _dirty    = true;
+    State       _state          = State::WAITING_WIFI;
+    bool        _ready          = false;
+    bool        _dirty          = true;
+    bool        _pendingWiFi    = false;   // auto-inicia portal na primeira ativação
     String      _ipBuffer = "192.168.1.100";
     String      _errorMsg;
 
@@ -45,7 +46,6 @@ private:
         {".","0","<"}
     };
 
-    void drawInstructions();
     void drawIPEntry();
     void drawStatus(const char* msg, uint16_t color);
     void startWiFiManager();
