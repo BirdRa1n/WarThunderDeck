@@ -17,41 +17,44 @@ void ScreenSetup::onActivate() {
 }
 
 void ScreenSetup::draw() {
-    if (!_dirty) return;
-    _dirty = false;
+    if (_dirty) {
+        _dirty   = false;
+        _ipDirty = false;
+        _tft->fillScreen(Theme::BG);
 
-    _tft->fillScreen(Theme::BG);
-
-    switch (_state) {
-        case State::WAITING_WIFI:
-            drawStatus("Starting WiFi portal...", Theme::COL_WARN);
-            if (_pendingWiFi) {
-                _pendingWiFi = false;
-                startWiFiManager();
-            }
-            break;
-        case State::WIFI_DONE:
-            drawIPEntry();
-            break;
-        case State::IP_ENTRY:
-            drawIPEntry();
-            break;
-        case State::TESTING:
-            drawStatus("Testing connection...", Theme::COL_WARN);
-            break;
-        case State::ERROR:
-            drawIPEntry();
-            if (!_errorMsg.isEmpty()) {
-                _tft->setTextColor(Theme::COL_DANGER, Theme::BG);
-                _tft->setTextFont(2);
-                _tft->setTextDatum(MC_DATUM);
-                _tft->drawString(_errorMsg.c_str(), SCREEN_W / 2, 68);
-                _tft->setTextDatum(TL_DATUM);
-            }
-            break;
-        case State::READY:
-            drawStatus("Connected! Starting...", Theme::COL_OK);
-            break;
+        switch (_state) {
+            case State::WAITING_WIFI:
+                drawStatus("Iniciando portal WiFi...", Theme::COL_WARN);
+                if (_pendingWiFi) {
+                    _pendingWiFi = false;
+                    startWiFiManager();
+                }
+                break;
+            case State::WIFI_DONE:
+            case State::IP_ENTRY:
+                drawIPEntry();
+                break;
+            case State::TESTING:
+                drawStatus("Testando conexao...", Theme::COL_WARN);
+                break;
+            case State::ERROR:
+                drawIPEntry();
+                if (!_errorMsg.isEmpty()) {
+                    _tft->setTextColor(Theme::COL_DANGER, Theme::BG);
+                    _tft->setTextFont(2);
+                    _tft->setTextDatum(MC_DATUM);
+                    _tft->drawString(_errorMsg.c_str(), SCREEN_W / 2, 68);
+                    _tft->setTextDatum(TL_DATUM);
+                }
+                break;
+            case State::READY:
+                drawStatus("Conectado! Iniciando...", Theme::COL_OK);
+                break;
+        }
+    } else if (_ipDirty) {
+        // Atualiza só a barra de IP — sem fillScreen, sem flicker
+        _ipDirty = false;
+        drawIPBar();
     }
 }
 
@@ -61,7 +64,7 @@ void ScreenSetup::onTouch(uint16_t x, uint16_t y) {
         case State::IP_ENTRY:
         case State::ERROR: {
             if (processKey(x, y)) {
-                _dirty = true;
+                _ipDirty = true;   // só atualiza a barra, sem redesenhar o teclado
             }
             // "Connect" button
             if (y >= BTN_CONN_Y && y < BTN_CONN_Y + BTN_H) {
@@ -85,14 +88,17 @@ void ScreenSetup::onTouch(uint16_t x, uint16_t y) {
 
 // ─── Private helpers ─────────────────────────────────────────────────────────
 
-void ScreenSetup::drawIPEntry() {
-    // IP display bar
+void ScreenSetup::drawIPBar() {
     _tft->fillRect(0, 10, SCREEN_W, 28, Theme::SURFACE);
     _tft->setTextColor(Theme::TEXT_PRIMARY, Theme::SURFACE);
     _tft->setTextFont(4);
     _tft->setTextDatum(ML_DATUM);
     _tft->drawString(_ipBuffer.c_str(), 8, 24);
     _tft->setTextDatum(TL_DATUM);
+}
+
+void ScreenSetup::drawIPEntry() {
+    drawIPBar();
 
     // Keypad
     for (int r = 0; r < KEY_ROWS; r++) {
@@ -134,25 +140,39 @@ void ScreenSetup::drawStatus(const char* msg, uint16_t color) {
 void ScreenSetup::startWiFiManager() {
     WiFiManager wm;
     wm.setConfigPortalTimeout(120);
+    wm.setConnectTimeout(20);   // tenta credenciais salvas por 20s antes de abrir portal
 
-    // Custom parameter for PC IP
     WiFiManagerParameter ipParam("pcip", "War Thunder PC IP", _cfg.pcIP.c_str(), 16);
     wm.addParameter(&ipParam);
 
-    bool connected = wm.startConfigPortal(WIFI_AP_NAME, WIFI_AP_PASS);
+    // autoConnect: reconecta silenciosamente se já houver rede salva;
+    // só abre o portal se a conexão falhar
+    bool connected = wm.autoConnect(WIFI_AP_NAME, WIFI_AP_PASS);
 
     if (connected) {
         String newIP = String(ipParam.getValue());
-        if (!newIP.isEmpty()) {
+        if (newIP.length() >= 7) {
             _ipBuffer = newIP;
             _cfg.pcIP = newIP;
+            _cfg.save();
         }
-        _state = State::WIFI_DONE;
+        // IP válido já salvo → vai direto para READY sem pedir confirmação
+        bool hasValidIP = (_cfg.pcIP.length() >= 7 && _cfg.pcIP != "192.168.1.100");
+        if (hasValidIP) {
+            _state = State::READY;
+            _dirty = true;
+            draw();
+            delay(800);
+            _ready = true;
+        } else {
+            _state = State::WIFI_DONE;
+            _dirty = true;
+        }
     } else {
         _state       = State::WAITING_WIFI;
-        _pendingWiFi = true;   // tenta novamente
+        _pendingWiFi = true;
+        _dirty       = true;
     }
-    _dirty = true;
 }
 
 void ScreenSetup::testConnection() {

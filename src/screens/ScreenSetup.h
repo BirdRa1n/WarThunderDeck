@@ -22,6 +22,7 @@ private:
     State       _state          = State::WAITING_WIFI;
     bool        _ready          = false;
     bool        _dirty          = true;
+    bool        _ipDirty        = false;   // redraw parcial só da barra de IP
     bool        _pendingWiFi    = false;   // auto-inicia portal na primeira ativação
     String      _ipBuffer = "192.168.1.100";
     String      _errorMsg;
@@ -46,6 +47,7 @@ private:
         {".","0","<"}
     };
 
+    void drawIPBar();    // redraw parcial — só a barra de IP
     void drawIPEntry();
     void drawStatus(const char* msg, uint16_t color);
     void startWiFiManager();

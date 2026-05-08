@@ -15,7 +15,7 @@ public:
 private:
     XPT2046_Touchscreen* _ts = nullptr;
     unsigned long _lastTouch  = 0;
-    static constexpr uint32_t DEBOUNCE_MS = 120;
+    static constexpr uint32_t DEBOUNCE_MS = 350;
 
     void mapToScreen(uint16_t rawX, uint16_t rawY, uint16_t& sx, uint16_t& sy);
 };
