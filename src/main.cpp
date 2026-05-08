@@ -13,7 +13,7 @@
 
 // ─── Globals ─────────────────────────────────────────────────────────────────
 static TFT_eSPI       tft;
-static SPIClass       vspi(VSPI);
+static SPIClass       hspi(HSPI);   // barramento dedicado ao XPT2046
 static TouchHandler   touch;
 static UserConfig     userCfg;
 static WTClient       wtClient;
@@ -82,9 +82,9 @@ void setup() {
     userCfg.load();
     setBrightness(userCfg.brightness);
 
-    // Shared SPI for touch (same bus as TFT)
-    vspi.begin(PIN_TFT_SCLK, PIN_TFT_MISO, PIN_TFT_MOSI);
-    touch.begin(vspi);
+    // HSPI dedicado ao touch (XPT2046 usa barramento separado do display)
+    hspi.begin(PIN_TOUCH_CLK, PIN_TOUCH_DOUT, PIN_TOUCH_DIN, PIN_TOUCH_CS);
+    touch.begin(hspi);
 
     // Mutex
     dataMutex = xSemaphoreCreateMutex();

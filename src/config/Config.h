@@ -1,15 +1,17 @@
 #pragma once
 
-// ─── Display pins ────────────────────────────────────────────────────────────
-#define PIN_TFT_MISO    12
+// ─── Display pins (VSPI bus) ─────────────────────────────────────────────────
 #define PIN_TFT_MOSI    13
 #define PIN_TFT_SCLK    14
 #define PIN_TFT_CS      15
 #define PIN_TFT_DC       2
-#define PIN_TFT_RST     -1
+#define PIN_TFT_RST     12
 #define PIN_TFT_BL      21
 
-// ─── Touch pins ──────────────────────────────────────────────────────────────
+// ─── Touch pins (HSPI bus — separado do display) ──────────────────────────────
+#define PIN_TOUCH_CLK   25
+#define PIN_TOUCH_DIN   32   // MOSI do XPT2046
+#define PIN_TOUCH_DOUT  39   // MISO do XPT2046
 #define PIN_TOUCH_CS    33
 #define PIN_TOUCH_IRQ   36
 
